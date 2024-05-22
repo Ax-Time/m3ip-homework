@@ -74,3 +74,38 @@ def OMP(s, D, L, tau):
         x[omega] = x_omega
         r = s - np.dot(D, x)
     return x
+
+def FISTA(A, b, lmbda, gamma=1e-3, tol=1e-6, max_iter=1000):
+    x = np.zeros((A.shape[1], b.shape[1]))
+    alpha = 1
+    y = x.copy()
+    ATb = A.T @ b
+    for _ in range(max_iter):
+        x_new = soft_th(y - gamma * A.T @ (A @ y) - ATb, lmbda * gamma)
+        alpha_new = (1 + np.sqrt(1 + 4 * alpha**2)) / 2
+        y = x_new + (alpha - 1) / alpha_new * (x_new - x)
+        if np.linalg.norm(x_new - x) < tol:
+            break
+        x = x_new
+        alpha = alpha_new
+    return x
+
+def IRLS(s, D, lmbda, x0=None):
+    if x0 is None:
+        x0 = np.zeros(D.shape[1])
+    delta = 1e-6
+    max_iter = 20
+    distanceX = 1e10
+    toll_x = 1e-3
+
+    x = x0
+
+    cnt = 0
+    while cnt < max_iter or distanceX > toll_x:
+        W = np.diag(1 / (np.abs(x) + delta))
+        # solve the weighted regularized LS system
+        x_new = np.linalg.solve((2 * lmbda * W + D.T @ D), D.T @ s)
+        distanceX = np.linalg.norm(x - x_new, ord=2)
+        x = x_new
+        cnt = cnt + 1
+    return x_new
