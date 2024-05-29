@@ -60,20 +60,73 @@ def LSOMP(s, D, L, tau):
         resNorm = np.linalg.norm(r)
     return x_LSOMP
 
-def OMP(s, D, L, tau):
-    D = D / np.linalg.norm(D, axis=0, keepdims=True)
+def OMP(s, D, L, tau, normalize_dict=True):
+    if normalize_dict:
+        D = D / np.linalg.norm(D, axis=0)
     M, N = D.shape
     r = s
     x = np.zeros(N)
     omega = []
-    while np.linalg.norm(r) > tau:
+    while np.count_nonzero(x) < L and np.linalg.norm(r) > tau:
         j = np.argmax(np.abs(np.dot(D.T, r)))
         omega.append(j)
         x_omega = np.linalg.lstsq(D[:, omega], s, rcond=None)[0]
         x = np.zeros(N)
         x[omega] = x_omega
-        r = s - np.dot(D, x)
+        r = s - np.dot(D[:, omega], x_omega)
     return x
+
+def OMP_good(s, D, L, min_res_norm=0.1, verbose=True):
+    """
+    Orthogonal Matching Pursuit (OMP) algorithm for sparse signal recovery.
+
+    Parameters:
+    - s: numpy array, the input signal to be recovered
+    - D: numpy array, the redundant dictionary matrix
+    - L: int, the desired sparsity level
+    - min_res_norm: float, optional, the minimum residual norm to stop the algorithm (default is 0.1)
+    - verbose: bool, optional, whether to print information logging during the algorithm (default is True)
+
+    Returns:
+    - x_OMP: numpy array, the recovered sparse coefficients
+    """
+
+    # Initialization
+    x_OMP = np.zeros(D.shape[1])    # coefficients
+    r = s                           # residual vector
+    omega = np.empty(0, dtype=int)  # support set
+    res_norm = np.linalg.norm(r)    # norm of the residual vector
+
+    # Main loop
+    while np.count_nonzero(x_OMP) < L and res_norm > min_res_norm:
+        # Sweep step
+        e = np.zeros(D.shape[1])
+        for j in range(D.shape[1]):
+            e[j] = (res_norm ** 2) - (r.T @ D[:, j]) ** 2
+
+        # Find the column of D that best matches the residual vector
+        j_star = np.argmin(e)
+
+        # Update the support set with the j_star coefficient
+        omega = np.append(omega, j_star)
+
+        # Update the coefficients by solving the least square problem argmin(||s - D_omega @ x_omega||)
+        x_OMP = np.zeros(D.shape[1])
+        x_OMP[omega] = np.linalg.lstsq(D[:, omega], s, rcond=None)[0]
+        # Or, alternatively:
+        # np.linalg.inv(D[:, omega].T @ D[:, omega]) @ D[:, omega].T @ s
+
+        # Update the residual
+        r = s - D[:, omega] @ x_OMP[omega]
+
+        # Update the residual norm
+        res_norm = np.linalg.norm(r)
+
+        # Information logging
+        if verbose:
+            print(f'Round {np.count_nonzero(x_OMP) + 1}: j_star = {j_star} with e[j_star] = {e[j_star]}')
+
+    return x_OMP
 
 def FISTA(A, b, lmbda, gamma=1e-3, tol=1e-6, max_iter=1000):
     x = np.zeros((A.shape[1], b.shape[1]))
@@ -109,3 +162,27 @@ def IRLS(s, D, lmbda, x0=None):
         x = x_new
         cnt = cnt + 1
     return x_new
+
+def MOD(S, lmbda, max_iter, verbose=True):
+    D = np.random.normal
+    for iter in range(max_iter):
+        if verbose:
+            print(f'Iteration {iter+1}/{max_iter}')
+        # perform the sparse coding for all the patches in S
+        # for n in range(npatch):
+        #     s = S[:, n]
+        #     # x =
+        #     X[:, n] = x
+        X = np.stack([
+            IRLS(si, D, lmbda)
+            for si in S.T
+        ], axis=1)
+
+        # MOD update
+        D = np.linalg.lstsq(X.T, S.T, rcond=None)[0].T
+        # Or, alternatively:
+        # D = S @ X.T @ np.linalg.inv(X @ X.T)
+
+        # normalize the column
+        D = D / np.linalg.norm(D, axis=0)
+    return D
