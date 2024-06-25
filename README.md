@@ -1,7 +1,7 @@
 # m3ip-homework
 homework of the course m3ip
 
-## to do >= 17
+## to do 17, >=20
 ## 17 broken, skipping for now
 
 ### Main code of 18:
