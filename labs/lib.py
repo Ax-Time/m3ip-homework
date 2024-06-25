@@ -316,6 +316,8 @@ class kSVD:
         -------
         np.ndarray
             Dictionary matrix (M, N).
+        np.ndarray
+            Sparse representation of the signal (N, W).
         """
         if len(S.shape) != 2:
             raise ValueError("Invalid signal matrix shape")
@@ -393,20 +395,20 @@ class kSVD:
 
 #     return x_OMP
 
-# def FISTA(A, b, lmbda, gamma=1e-3, tol=1e-2, max_iter=1000):
-#     x = np.zeros((A.shape[1], b.shape[1]))
-#     alpha = 1
-#     y = x.copy()
-#     ATb = A.T @ b
-#     for _ in range(max_iter):
-#         x_new = soft_th(y - gamma * A.T @ (A @ y) - ATb, lmbda * gamma)
-#         alpha_new = (1 + np.sqrt(1 + 4 * alpha**2)) / 2
-#         y = x_new + (alpha - 1) / alpha_new * (x_new - x)
-#         if np.linalg.norm(x_new - x) < tol:
-#             break
-#         x = x_new
-#         alpha = alpha_new
-#     return x
+def FISTA(A, b, lmbda, gamma=1e-3, tol=1e-2, max_iter=1000):
+    x = np.zeros((A.shape[1], b.shape[1]))
+    alpha = 1
+    y = x.copy()
+    ATb = A.T @ b
+    for _ in range(max_iter):
+        x_new = soft_th(y - gamma * A.T @ (A @ y) - ATb, lmbda * gamma)
+        alpha_new = (1 + np.sqrt(1 + 4 * alpha**2)) / 2
+        y = x_new + (alpha - 1) / alpha_new * (x_new - x)
+        if np.linalg.norm(x_new - x) < tol:
+            break
+        x = x_new
+        alpha = alpha_new
+    return x
 
 def IRLS(s, D, lmbda, toll_x=1e-2, max_iter=50):
     x0 = np.zeros(D.shape[1])
@@ -417,7 +419,7 @@ def IRLS(s, D, lmbda, toll_x=1e-2, max_iter=50):
     x = x0
 
     cnt = 0
-    while cnt < max_iter or distanceX > toll_x:
+    while cnt < max_iter and distanceX > toll_x:
         W = np.diag(1 / (np.abs(x) + delta))
         # solve the weighted regularized LS system
         x_new = np.linalg.solve((2 * lmbda * W + D.T @ D), D.T @ s)

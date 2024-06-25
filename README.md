@@ -1,7 +1,8 @@
 # m3ip-homework
 homework of the course m3ip
 
-## checked 11-20 (to check 17: too slow in the last part, maybe IRLS broken?, do 18)
+## to do >= 17
+## 17 broken, skipping for now
 
 ### Main code of 18:
 ```python
