@@ -344,58 +344,6 @@ class kSVD:
                 break
         return D, X
 
-# def OMP_good(s, D, L, min_res_norm=0.1, verbose=True):
-#     """
-#     Orthogonal Matching Pursuit (OMP) algorithm for sparse signal recovery.
-
-#     Parameters:
-#     - s: numpy array, the input signal to be recovered
-#     - D: numpy array, the redundant dictionary matrix
-#     - L: int, the desired sparsity level
-#     - min_res_norm: float, optional, the minimum residual norm to stop the algorithm (default is 0.1)
-#     - verbose: bool, optional, whether to print information logging during the algorithm (default is True)
-
-#     Returns:
-#     - x_OMP: numpy array, the recovered sparse coefficients
-#     """
-
-#     # Initialization
-#     x_OMP = np.zeros(D.shape[1])    # coefficients
-#     r = s                           # residual vector
-#     omega = np.empty(0, dtype=int)  # support set
-#     res_norm = np.linalg.norm(r)    # norm of the residual vector
-
-#     # Main loop
-#     while np.count_nonzero(x_OMP) < L and res_norm > min_res_norm:
-#         # Sweep step
-#         e = np.zeros(D.shape[1])
-#         for j in range(D.shape[1]):
-#             e[j] = (res_norm ** 2) - (r.T @ D[:, j]) ** 2
-
-#         # Find the column of D that best matches the residual vector
-#         j_star = np.argmin(e)
-
-#         # Update the support set with the j_star coefficient
-#         omega = np.append(omega, j_star)
-
-#         # Update the coefficients by solving the least square problem argmin(||s - D_omega @ x_omega||)
-#         x_OMP = np.zeros(D.shape[1])
-#         x_OMP[omega] = np.linalg.lstsq(D[:, omega], s, rcond=None)[0]
-#         # Or, alternatively:
-#         # np.linalg.inv(D[:, omega].T @ D[:, omega]) @ D[:, omega].T @ s
-
-#         # Update the residual
-#         r = s - D[:, omega] @ x_OMP[omega]
-
-#         # Update the residual norm
-#         res_norm = np.linalg.norm(r)
-
-#         # Information logging
-#         if verbose:
-#             print(f'Round {np.count_nonzero(x_OMP) + 1}: j_star = {j_star} with e[j_star] = {e[j_star]}')
-
-#     return x_OMP
-
 def FISTA(A, b, lmbda, gamma=1e-3, tol=1e-2, max_iter=1000):
     x = np.zeros((A.shape[1], b.shape[1]))
     alpha = 1
