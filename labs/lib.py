@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 from concurrent.futures import ThreadPoolExecutor
+from scipy.signal import convolve
 
 def dct_matrix(M):
     return np.array([
@@ -452,3 +453,135 @@ def MOD(S, N, lmbda, max_iter, verbose=True):
         # normalize the column
         D = D / np.linalg.norm(D, axis=0)
     return D
+
+def generate_lpa_filter(M: int, N: int, weights: np.ndarray | str = 'uniform'):
+    """
+    Generate a LPA filter of order N to fit M points.
+
+    Parameters
+    ----------
+    M : int
+        Number of points to fit.
+    N : int
+        Order of the filter.
+    weights : np.ndarray or str
+        Weights for the fitting. 
+        May also be one of ['uniform', 'left', 'right', 'center'].
+
+    Returns
+    -------
+    numpy array, the LPA filter
+    numpy array, the weights
+    """
+    if M < N:
+        raise ValueError('M must be greater than N')
+    if type(weights) == np.ndarray:
+        w = weights
+    elif weights == 'uniform':
+        w = np.ones(M)
+    elif weights in ['left', 'right', 'center']:
+        if M in [1, 3]:
+            w = np.ones(M)
+        else:
+            # half filter size
+            HFS = int((M-1)/2)
+
+            # set the weights. Here weights simply define the window size
+            w = np.zeros(M)
+
+            # centered kernel
+            wc = w.copy()
+            wc[int(HFS/2):-int(HFS/2)] = 1
+
+            # left kernel
+            wl = w.copy()
+            wl[:HFS+1] = 1
+
+            # right kernel
+            wr = w.copy()
+            wr[-HFS-1:] = 1
+            if weights == 'center':
+                w = wc
+            elif weights == 'left':
+                w = wl
+            elif weights == 'right':
+                w = wr
+    else:
+        raise NotImplementedError()
+    T = np.vander(1 + np.arange(M), N+1, increasing=True)
+    Q, _ = np.linalg.qr(np.diag(w) @ T)
+    filter = np.flip((Q @ Q[M // 2]) * w / w[M // 2])
+    return filter, w
+
+class LPA_ICI:
+    """
+    LPA-ICI algorithm for signal denoising.
+    """
+    def __init__(
+        self,
+        hmax: int,
+        max_degree: int,
+        sigma: float,
+        Gamma: float = 2.0
+    ):
+        """
+        Parameters
+        ----------
+        hmax : int
+            Maximum window size.
+        max_degree : int
+            Maximum degree of the polynomial.
+        sigma : float
+            Standard deviation of the noise.
+        Gamma : float
+            Regularization parameter. Default is 2.0.
+        """
+        self.hmax = hmax
+        self.max_degree = max_degree
+        self.sigma = sigma
+        self.Gamma = Gamma
+
+    def fit(self, s: np.ndarray, weights: np.ndarray | str = 'center'):
+        """
+        Run the algorithm.
+
+        Parameters
+        ----------
+        s : np.ndarray
+            1D signal vector.
+        weights : np.ndarray or str
+            Weights for the fitting. 
+            May also be one of ['left', 'right', 'center'].
+
+        Returns
+        -------
+        np.ndarray
+            Denoised signal.
+        np.ndarray
+            Best window size for each point.
+        """
+        # Initialization
+        LENGTH = len(s)
+        yhat = np.zeros(LENGTH)
+        best_scale = np.zeros(LENGTH)
+        lower_bounds = - np.ones(LENGTH) * np.inf
+        upper_bounds = np.ones(LENGTH) * np.inf
+        estimated = np.zeros(LENGTH, dtype=bool)
+
+        # Algorithm
+        all_h = np.arange(1, self.hmax + 1)
+        for i, h in enumerate(all_h):
+            M = 2 * h - 1
+            n = M-1 if M < self.max_degree else self.max_degree
+            g, _ = generate_lpa_filter(M, n, weights=weights)
+            yhat_h = convolve(s, g, mode='same')
+            iwidth = self.Gamma * self.sigma * np.linalg.norm(g)
+            lbh = yhat_h - iwidth
+            ubh = yhat_h + iwidth
+            lower_bounds[~estimated] = np.maximum(lower_bounds[~estimated], lbh[~estimated])
+            upper_bounds[~estimated] = np.minimum(upper_bounds[~estimated], ubh[~estimated])
+            yhat[~estimated] = yhat_h[~estimated]
+            best_scale[~estimated] = h
+            estimated = lower_bounds >= upper_bounds
+        return yhat, best_scale
+
