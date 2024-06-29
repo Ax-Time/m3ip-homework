@@ -533,3 +533,150 @@ class LPA_ICI:
             estimated = lower_bounds >= upper_bounds
         return yhat, best_scale
 
+class RANSAC:
+    def __init__(self, eps: float, model, cost, min_samples: int, p_outlier: float = 0.1, p_success: float = 0.99):
+        """
+        Parameters
+        ----------
+        eps : float
+            Inlier threshold.
+        model : Model class
+            Has a fit method and a predict method.
+        cost : Cost function or one of ['standard', 'MSAC']
+            Cost function to evaluate the model.
+        min_samples : int
+            Minimum number of samples to fit the model.
+        p_outlier : float
+            Probability of an outlier.
+        p_success : float
+            Probability of success.
+        """
+        if eps < 0:
+            raise ValueError('eps must be non-negative')
+        if min_samples < 1:
+            raise ValueError('min_samples must be greater than 0')
+        if p_outlier < 0 or p_outlier > 1:
+            raise ValueError('p_outlier must be in [0, 1]')
+        if p_success < 0 or p_success > 1:
+            raise ValueError('p_success must be in [0, 1]')
+        self.eps = eps
+        self.model = model
+        if cost == 'standard':
+            self.cost = lambda res: -np.sum(np.abs(res) < eps)
+        elif cost == 'MSAC':
+            self.cost = lambda res: np.sum(np.minimum(np.abs(res), eps))
+        else:
+            self.cost = cost
+        self.min_samples = min_samples
+        self.p_outlier = p_outlier
+        self.p_success = p_success
+
+    def fit(self, X, y):
+        """
+        Run the algorithm.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            2D array of shape (n_samples, n_features).
+        y : np.ndarray
+            1D array of shape (n_samples,).
+
+        Returns
+        -------
+        Model
+            Best fitted model.
+        """
+        if len(X) < self.min_samples:
+            raise ValueError('Not enough samples')
+        best_model = None
+        best_cost = np.inf
+        n_iter = np.log(1 - self.p_success) / np.log(1 - (1 - self.p_outlier) ** self.min_samples)
+        for it in range((int)(n_iter)):
+            indices = np.random.choice(len(X), self.min_samples, replace=False)
+            model = self.model()
+            model.fit(X[indices, :], y[indices])
+            residuals = y - model.predict(X)
+            cost = self.cost(residuals)
+            if cost < best_cost:
+                best_model = model
+                best_cost = cost
+        inliers = np.abs(y - best_model.predict(X)) < self.eps
+        best_model.fit(X[inliers], y[inliers])
+        return best_model, inliers
+        
+class DLT:
+    """
+    Direct Linear Transform algorithm.
+    """
+    def __init__(self):
+        pass
+
+    def fit(self, X, y):
+        """
+        Run the algorithm.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            2D array of shape (n_samples, n_features).
+        y : np.ndarray
+            1D array of shape (n_samples,).
+        """
+        A = np.c_[X, np.ones(len(X)), y]
+        _, _, VT = np.linalg.svd(A)
+        self.coef_ = VT[-1]
+    
+    def predict(self, X):
+        """
+        Predict the output.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            2D array of shape (n_samples, n_features).
+
+        Returns
+        -------
+        np.ndarray
+            Predicted values.
+        """
+        return np.dot(np.c_[X, np.ones(len(X))], self.coef_[:-1])
+
+
+    
+class LS:
+    """
+    Least Squares algorithm.
+    """
+    def __init__(self):
+        pass
+
+    def fit(self, X, y):
+        """
+        Run the algorithm.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            2D array of shape (n_samples, n_features).
+        y : np.ndarray
+            1D array of shape (n_samples,).
+        """
+        self.coef_ = np.linalg.lstsq(X, y, rcond=None)[0]
+    
+    def predict(self, X):
+        """
+        Predict the output.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            2D array of shape (n_samples, n_features).
+
+        Returns
+        -------
+        np.ndarray
+            Predicted values.
+        """
+        return X @ self.coef_
