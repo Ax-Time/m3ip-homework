@@ -680,3 +680,37 @@ class LS:
             Predicted values.
         """
         return X @ self.coef_
+    
+class ConicFitter:
+    def __init__(self):
+        pass
+
+    def fit(self, X):
+        """
+        Fit a conic to a set of points.
+        """
+        x = X[:, 0]
+        y = X[:, 1]
+        rho = np.sqrt(x**2 + y**2)
+        theta = np.arctan2(y, x)
+        x = rho * np.cos(theta)
+        N = len(X)
+        e = (np.sum(x) * np.sum(rho) - N * np.sum(x * rho)) / (N * np.sum(np.square(x)) - np.square(np.sum(x)))
+        l = np.mean(x) * e + np.mean(rho)
+        self.l = l
+        self.e = e
+
+    def __compute_y(self, x):
+        arg = self.l - self.e * x - x ** 2
+        res = -np.ones_like(arg)
+        res[arg >= 0] = np.sqrt(arg[arg >= 0])
+        return res
+
+    def display(self, ax, density=10, **kwargs):
+        x_lim = ax.get_xlim()
+        x = np.linspace(x_lim[0], x_lim[1], density * (int)(x_lim[1] - x_lim[0]))
+        y = self.__compute_y(x)
+        ax.scatter(x[y != -1], y[y != -1], **kwargs)
+        ax.scatter(x[y != -1], -y[y != -1], **kwargs)
+
+        
