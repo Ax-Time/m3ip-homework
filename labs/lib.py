@@ -33,8 +33,8 @@ def Lsparse(size, L):
 def img_to_patches(img, p, stride=1):
     return np.stack([
         img[i:i+p, j:j+p].ravel()
-        for i in range(0, img.shape[0] - p, stride)
-        for j in range(0, img.shape[1] - p, stride)
+        for i in range(0, img.shape[0] - p + 1, stride)
+        for j in range(0, img.shape[1] - p + 1, stride)
     ], axis=1)
 
 def LSOMP(s, D, L, tau):
