@@ -254,18 +254,17 @@ class MatchingPursuit:
         omega = []
         while not self.__stopping_criterion(x, r, n_it):
             n_it += 1
-            tmp = {}
-            for j in [k for k in range(N) if k not in omega]:
-                omega_j = omega + [j]
-                z, e, _, _ = np.linalg.lstsq(D[:, omega_j], s, rcond=None)
-                tmp[j] = (e, z)
-            e = np.array([np.inf] * N)
-            for j in tmp:
-                if len(tmp[j][0]) > 0:
-                    e[j] = tmp[j][0].item()
-            jStar = np.argmin(e)
+            errors = []
+            models = []
+            for j in range(N):
+                if j in omega:
+                    errors.append(np.inf)
+                    models.append(None)
+                else:
+                    model, error, _, _ = np.linalg.lstsq(D[:, omega + [j]], s, rcond=None)
+            jStar = np.argmin(errors)
             omega.append(jStar)
-            x_omega = tmp[jStar][1]
+            x_omega = models[jStar]
             x = np.zeros(N)
             x[omega] = x_omega
             r = s - D[:, omega] @ x[omega]
