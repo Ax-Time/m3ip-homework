@@ -346,12 +346,12 @@ class kSVD:
         return D, X
 
 def FISTA(A, b, lmbda, gamma=1e-3, tol=1e-2, max_iter=1000):
-    x = np.zeros((A.shape[1], b.shape[1]))
+    x = np.zeros(A.shape[1])
     alpha = 1
     y = x.copy()
     ATb = A.T @ b
-    for _ in range(max_iter):
-        x_new = soft_th(y - gamma * A.T @ (A @ y) - ATb, lmbda * gamma)
+    for it in range(max_iter):
+        x_new = soft_th(y - gamma * (A.T @ (A @ y) - ATb), lmbda * gamma)
         alpha_new = (1 + np.sqrt(1 + 4 * alpha**2)) / 2
         y = x_new + (alpha - 1) / alpha_new * (x_new - x)
         if np.linalg.norm(x_new - x) < tol:
