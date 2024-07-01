@@ -262,6 +262,8 @@ class MatchingPursuit:
                     models.append(None)
                 else:
                     model, error, _, _ = np.linalg.lstsq(D[:, omega + [j]], s, rcond=None)
+                    errors.append(error.item())
+                    models.append(model)
             jStar = np.argmin(errors)
             omega.append(jStar)
             x_omega = models[jStar]
