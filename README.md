@@ -1,2 +1,2 @@
 # m3ip-homework
-homework of the course m3ip
+Implementation of several image and signal denoising algorithm based on the contents of the course "Mathematical Models and Methods for Image Processing" from Politecnico di Milano, AY 2023/2024.
